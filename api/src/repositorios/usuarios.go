@@ -73,3 +73,29 @@ func (repositorio Usuarios) BuscarPorId(userId uint64) (modelos.Usuario, error) 
 	}
 	return usuario, nil
 }
+
+func (repositorio Usuarios) Atualizar(userId uint64, usuario modelos.Usuario) error {
+	statement, err := repositorio.db.Prepare("update usuarios set nome = ? , nick = ? , email = ? where id = ?")
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	if _, err = statement.Exec(usuario.Nome, usuario.Nick, usuario.Email, userId); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (repositorio Usuarios) Deletar(userId uint64) error {
+	statement, err := repositorio.db.Prepare("DELETE FROM usuarios WHERE id = ?")
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	if _, err = statement.Exec(userId); err != nil {
+		return err
+	}
+	return nil
+}
