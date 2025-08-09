@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 )
 
 func CriarUsuario(w http.ResponseWriter, r *http.Request) {
@@ -23,11 +24,16 @@ func CriarUsuario(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err = usuario.Preparar(); err != nil {
+		respostas.ERRO(w, 400, err)
+	}
+
 	bd, err := banco.Conectar()
 	if err != nil {
 		respostas.ERRO(w, 500, err)
 		return
 	}
+	defer bd.Close()
 
 	repositorio := repositorios.NovoRepositorioDeUsuarios(bd) // so para poder ter os metodos no banco como "executador do metodo"
 	usuarioId, err := repositorio.Criar(usuario)              // equivalente ao service createOne do node
@@ -49,9 +55,23 @@ func CriarUsuario(w http.ResponseWriter, r *http.Request) {
 }
 
 func BuscarUsuarios(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
-	json.NewEncoder(w).Encode("USERS FOUND")
+	nomeOuNick := strings.ToLower(r.URL.Query().Get("usuario"))
+
+	bd, err := banco.Conectar()
+	if err != nil {
+		respostas.ERRO(w, 500, err)
+		return
+	}
+	defer bd.Close()
+
+	repositorio := repositorios.NovoRepositorioDeUsuarios(bd) // so para poder ter os metodos no banco como "executador do metodo"
+	usuarios, err := repositorio.Buscar(nomeOuNick)           // equivalente ao service createOne do node
+	if err != nil {
+		respostas.ERRO(w, 500, err)
+		return
+	}
+
+	respostas.JSON(w, 201, usuarios)
 }
 
 func BuscarUsuario(w http.ResponseWriter, r *http.Request) {
