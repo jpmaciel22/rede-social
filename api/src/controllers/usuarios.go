@@ -4,54 +4,48 @@ import (
 	"api/src/banco"
 	"api/src/modelos"
 	"api/src/repositorios"
+	"api/src/respostas"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 )
 
 func CriarUsuario(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Fatal(err)
+		respostas.ERRO(w, http.StatusUnprocessableEntity, err)
+		return
 	}
 
 	var usuario modelos.Usuario
 	if err = json.Unmarshal(body, &usuario); err != nil {
-		log.Fatal(err)
+		respostas.ERRO(w, http.StatusBadRequest, err)
+		return
 	}
 
 	bd, err := banco.Conectar()
 	if err != nil {
-		log.Fatal(err)
+		respostas.ERRO(w, 500, err)
+		return
 	}
 
 	repositorio := repositorios.NovoRepositorioDeUsuarios(bd) // so para poder ter os metodos no banco como "executador do metodo"
 	usuarioId, err := repositorio.Criar(usuario)              // equivalente ao service createOne do node
 	if err != nil {
-		log.Fatal(err)
+		respostas.ERRO(w, 500, err)
+		return
 	}
 
 	linha, err := bd.Query("SELECT * FROM usuarios where id = ?", usuarioId) // parecido com o prepare statement
 	if err != nil {
-		w.Write([]byte("FAILED TO GET USUARIOS"))
+		respostas.ERRO(w, 500, err)
 		return
 	}
 	defer linha.Close()
 
-	var usuarioRetornado modelos.Usuario
-	if linha.Next() { // para cada linha executada ele faz uma iteracao
-		if err := linha.Scan(&usuarioRetornado.Id, &usuarioRetornado.Nome, &usuarioRetornado.Nick, &usuarioRetornado.Email, &usuarioRetornado.Senha, &usuarioRetornado.CriadoEm); err != nil {
-			w.Write([]byte("FAIL ON SCANNING USER"))
-			return
-		}
-	}
+	usuario.Id = usuarioId
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(201)
-	if err := json.NewEncoder(w).Encode(usuarioRetornado); err != nil {
-		log.Fatal("Error retrieving usuarioRetornado")
-	}
+	respostas.JSON(w, 201, usuario)
 }
 
 func BuscarUsuarios(w http.ResponseWriter, r *http.Request) {
