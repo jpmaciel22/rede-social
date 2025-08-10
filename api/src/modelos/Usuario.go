@@ -1,9 +1,12 @@
 package modelos
 
 import (
+	"api/src/seguranca"
 	"errors"
 	"strings"
 	"time"
+
+	"github.com/badoux/checkmail"
 )
 
 type Usuario struct {
@@ -20,7 +23,9 @@ func (usuario *Usuario) Preparar(etapa string) error {
 		return err
 	}
 
-	usuario.formatar()
+	if err := usuario.formatar(etapa); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -34,14 +39,28 @@ func (usuario *Usuario) validar(etapa string) error {
 	if usuario.Email == "" {
 		return errors.New(" O email é obrigatório e não pode estar em branco")
 	}
+
+	if err := checkmail.ValidateFormat(usuario.Email); err != nil {
+		return errors.New(" O email inserido é inválido ")
+	}
+
 	if etapa == "cadastro" && usuario.Senha == "" {
 		return errors.New(" A senha é obrigatória e não pode estar em branco")
 	}
 	return nil
 }
 
-func (usuario *Usuario) formatar() {
+func (usuario *Usuario) formatar(etapa string) error {
 	usuario.Nome = strings.TrimSpace(usuario.Nome)
 	usuario.Email = strings.TrimSpace(usuario.Email)
 	usuario.Nick = strings.TrimSpace(usuario.Nick)
+
+	if etapa == "cadastro" {
+		senhaComHash, err := seguranca.Hash(usuario.Senha)
+		if err != nil {
+			return err
+		}
+		usuario.Senha = string(senhaComHash)
+	}
+	return nil
 }
